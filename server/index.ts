@@ -25,7 +25,7 @@ async function writeJsonContent(payload: unknown) {
   await writeFile(contentFile, JSON.stringify(payload, null, 2), 'utf8')
 }
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5173' }))
+app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5175' }))
 app.use(express.json({ limit: '2mb' }))
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) })
@@ -99,7 +99,7 @@ app.get(['/api/auth/google/callback','/api/auth/callback/google'], async (req,re
       user={id:`google:${profile.email}`,role:Role.ADMIN}
     }
     const session=jwt.sign(user,secret,{expiresIn:'8h'})
-    res.redirect(`${process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5173'}/admin?token=${encodeURIComponent(session)}`)
+    res.redirect(`${process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5175'}/admin?token=${encodeURIComponent(session)}`)
   } catch { res.status(500).send('Unable to complete Google authorization.') }
 })
 
