@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  MANAGER
+}
+
+enum LeadStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  passwordHash String?
+  role Role @default(EDITOR)
+  provider String @default("email")
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteContent {
+  id String @id @default("homepage")
+  payload Json
+  version Int @default(1)
+  published Boolean @default(true)
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ContactMessage {
+  id String @id @default(cuid())
+  name String
+  email String
+  phone String?
+  subject String?
+  message String
+  status LeadStatus @default(NEW)
+  repliedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id String @id @default(cuid())
+  userId String?
+  action String
+  entity String
+  entityId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+}
