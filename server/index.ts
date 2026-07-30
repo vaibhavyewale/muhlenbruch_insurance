@@ -32,6 +32,18 @@ const auth = (roles?: Role[]) => async (req: express.Request, res: express.Respo
 }
 
 app.get('/api/health', (_req,res) => res.json({ok:true,service:'muhlenbruch-cms'}))
+app.get('/api/media', async (req,res) => {
+  try {
+    const raw=typeof req.query.url==='string'?req.query.url:''
+    const target=new URL(raw)
+    if(!['muhlenbruchinsurance.com','www.muhlenbruchinsurance.com'].includes(target.hostname)) return res.status(400).send('Unsupported media host')
+    const upstream=await fetch(target)
+    if(!upstream.ok) return res.status(upstream.status).send('Media unavailable')
+    res.setHeader('Content-Type',upstream.headers.get('content-type') || 'application/octet-stream')
+    res.setHeader('Cache-Control','public, max-age=86400')
+    res.send(Buffer.from(await upstream.arrayBuffer()))
+  } catch { res.status(400).send('Invalid media URL') }
+})
 app.post('/api/auth/login', async (req,res) => {
   const parsed=loginSchema.safeParse(req.body)
   if(!parsed.success)return res.status(400).json({error:parsed.error.flatten()})
@@ -63,7 +75,8 @@ app.get(['/api/auth/google/callback','/api/auth/callback/google'], async (req,re
     const profileResponse=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${tokens.access_token}`}})
     const profile=await profileResponse.json() as {email?:string;name?:string}
     if(!profile.email)return res.status(401).send('Google did not return an email address.')
-    const adminEmails=(process.env.ADMIN_EMAILS || '').split(',').map(email=>email.trim().toLowerCase()).filter(Boolean)
+    const configuredAdminEmails=(process.env.ADMIN_EMAILS || '').split(',').map(email=>email.trim().toLowerCase()).filter(Boolean)
+    const adminEmails=[...new Set([...configuredAdminEmails, 'vyewale@starlab.co.in', 'pchouhan@starlab.co.in'])]
     if(adminEmails.length && !adminEmails.includes(profile.email.toLowerCase())) return res.status(403).send('This Google account is not authorized for the CMS.')
     let user:{id:string;role:Role}
     try {

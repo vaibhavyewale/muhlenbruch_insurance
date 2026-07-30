@@ -7,6 +7,7 @@ import AdminLogin from './cms/Login'
 import DynamicContact from './cms/DynamicContact'
 import DynamicFooter from './cms/DynamicFooter'
 import { readContent } from './cms/store'
+import { mediaUrl } from './cms/media'
 
 class CmsErrorBoundary extends Component<{children:ReactNode},{error:Error|null}> {
   state={error:null as Error|null}
@@ -15,7 +16,7 @@ class CmsErrorBoundary extends Component<{children:ReactNode},{error:Error|null}
   render() { if (!this.state.error) return this.props.children; return <div className="cms-runtime-error"><div><span className="cms-runtime-mark">!</span><p className="cms-kicker">CMS RUNTIME ERROR</p><h1>This admin module could not load.</h1><p>{this.state.error.message}</p><button onClick={()=>{localStorage.removeItem('muhlenbruch-cms-content-v1'); window.location.reload()}}>Reset CMS cache</button><a href="/">Return to website</a></div></div> }
 }
 
-const img = (id: string) => id.startsWith('http') ? id : `https://images.unsplash.com/${id}?q=80&w=1000&auto=format&fit=crop`
+const img = (id: string) => id.startsWith('http') ? mediaUrl(id) : `https://images.unsplash.com/${id}?q=80&w=1000&auto=format&fit=crop`
 const rise = { initial: { opacity: 0, y: 22 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-80px' }, transition: { duration: .65 } }
 
 function Navbar() {
