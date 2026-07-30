@@ -4,6 +4,11 @@ import type { CmsContent } from './types'
 const KEY = 'muhlenbruch-cms-content-v1'
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 export function readContent(): CmsContent { try { const saved = localStorage.getItem(KEY); if (!saved) return clone(defaultContent); const raw=JSON.parse(saved); if (!raw || typeof raw !== 'object') return clone(defaultContent); const parsed=raw as Partial<CmsContent>; const hero={...clone(defaultContent.hero),...(parsed.hero || {})}; if (!Array.isArray(hero.slides)) hero.slides=[{...hero,id:hero.id || 'hero-1',order:1}]; return {...clone(defaultContent),...parsed,hero,about:{...clone(defaultContent.about),...(parsed.about || {})},contact:{...clone(defaultContent.contact),...(parsed.contact || {})},footer:{...clone(defaultContent.footer),...(parsed.footer || {})},nav:Array.isArray(parsed.nav)?parsed.nav:clone(defaultContent.nav),services:Array.isArray(parsed.services)?parsed.services:clone(defaultContent.services),plans:Array.isArray(parsed.plans)?parsed.plans:clone(defaultContent.plans),stats:Array.isArray(parsed.stats)?parsed.stats:clone(defaultContent.stats),testimonials:Array.isArray(parsed.testimonials)?parsed.testimonials:clone(defaultContent.testimonials)} } catch { return clone(defaultContent) } }
-export function writeContent(content: CmsContent) { localStorage.setItem(KEY, JSON.stringify(content)); window.dispatchEvent(new CustomEvent('cms-content-updated')) }
+export function writeContent(content: CmsContent) {
+  localStorage.setItem(KEY, JSON.stringify(content))
+  const token=localStorage.getItem('cms-auth-token')
+  if(token) void fetch('/api/content/homepage',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(content)})
+  window.dispatchEvent(new CustomEvent('cms-content-updated'))
+}
 export function resetContent() { writeContent(clone(defaultContent)); return clone(defaultContent) }
 export function exportContent(content: CmsContent) { const blob = new Blob([JSON.stringify(content, null, 2)], {type:'application/json'}); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'muhlenbruch-content.json'; anchor.click(); URL.revokeObjectURL(url) }

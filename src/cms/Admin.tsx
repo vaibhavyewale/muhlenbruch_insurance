@@ -9,10 +9,17 @@ type Tab = 'overview'|'header'|'hero'|'services'|'plans'|'stats'|'about'|'contac
 const tabs: {id:Tab; label:string; icon:typeof LayoutDashboard}[] = [{id:'overview',label:'Overview',icon:LayoutDashboard},{id:'header',label:'Header & Menu',icon:Menu},{id:'hero',label:'Hero Banner',icon:Image},{id:'services',label:'Insurance Services',icon:ShieldCheck},{id:'plans',label:'Insurance Plans',icon:FileText},{id:'stats',label:'Statistics',icon:ArrowUp},{id:'about',label:'About & Agents',icon:Users},{id:'contact',label:'Contact Enquiries',icon:FileText},{id:'testimonials',label:'Testimonials',icon:Users},{id:'footer',label:'Footer',icon:LayoutDashboard},{id:'settings',label:'Website Settings',icon:Settings}]
 const Field = ({label,value,onChange,area=false}:{label:string;value:string;onChange:(v:string)=>void;area?:boolean}) => <label className="cms-field"><span>{label}</span>{area ? <textarea value={value} onChange={e=>onChange(e.target.value)} rows={4}/> : <input value={value} onChange={e=>onChange(e.target.value)}/>}</label>
 
+async function persistContent(content:CmsContent) {
+  writeContent(content)
+  const response=await fetch('/api/content/homepage',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${localStorage.getItem('cms-auth-token') || ''}`},body:JSON.stringify(content)})
+  if(!response.ok) throw new Error('Remote CMS save failed')
+}
+
 export default function Admin() {
   const [content,setContent] = useState<CmsContent>(() => readContent()); const [tab,setTab] = useState<Tab>('overview'); const [query,setQuery] = useState(''); const [saved,setSaved] = useState(false)
+  useEffect(() => { fetch('/api/content/homepage').then(response=>response.ok?response.json():null).then(remote=>{ if(remote && typeof remote==='object') { writeContent(remote); setContent(readContent()) } }).catch(()=>undefined) }, [])
   const update = (next:CmsContent) => { setContent(next); setSaved(false) }
-  const save = async () => { writeContent(content); try { await fetch('/api/content/homepage',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${localStorage.getItem('cms-auth-token') || ''}`},body:JSON.stringify(content)}) } catch { /* local storage remains available when the API is offline */ } setSaved(true); window.setTimeout(()=>setSaved(false),2200) }
+  const save = async () => { try { await persistContent(content); setSaved(true) } catch { setSaved(false); window.alert('Saved locally, but the Railway CMS could not be reached. Please sign in again and retry.') } window.setTimeout(()=>setSaved(false),2200) }
   const signOut = () => { localStorage.removeItem('cms-auth-token'); localStorage.removeItem('cms-user'); window.location.assign('/') }
   const updateList = (key:'services'|'plans'|'testimonials', id:string, patch:Partial<RepeatableItem>) => update({...content,[key]:content[key].map(item=>item.id===id?{...item,...patch}:item)})
   const addItem = (key:'services'|'plans'|'testimonials') => update({...content,[key]:[...content[key],{id:`${key}-${Date.now()}`,title:'New item',description:'Add a description from the editor.',image:'',enabled:true,order:content[key].length+1}]})
