@@ -7,12 +7,23 @@ import { z } from 'zod'
 import { PrismaClient, Role } from '@prisma/client'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 
 const app = express()
 const prisma = new PrismaClient()
 const port = Number(process.env.PORT || 4000)
 const secret = process.env.JWT_SECRET || 'development-secret'
+const contentFile = path.resolve(process.cwd(), 'data/homepage-content.json')
 const localLeads: Array<{id:string;name:string;email:string;phone?:string;subject?:string;message:string;status:string;createdAt:string}> = []
+
+async function readJsonContent() {
+  try { return JSON.parse(await readFile(contentFile, 'utf8')) }
+  catch { return null }
+}
+async function writeJsonContent(payload: unknown) {
+  await mkdir(path.dirname(contentFile), { recursive: true })
+  await writeFile(contentFile, JSON.stringify(payload, null, 2), 'utf8')
+}
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5173' }))
 app.use(express.json({ limit: '2mb' }))
@@ -92,8 +103,24 @@ app.get(['/api/auth/google/callback','/api/auth/callback/google'], async (req,re
   } catch { res.status(500).send('Unable to complete Google authorization.') }
 })
 
-app.get('/api/content/homepage', async (_req,res) => { const content=await prisma.siteContent.findUnique({where:{id:'homepage'}}); res.json(content?.payload || null) })
-app.put('/api/content/homepage', auth([Role.SUPER_ADMIN,Role.ADMIN,Role.EDITOR]), async (req,res) => { const user=(req as express.Request & {user?:{id:string}}).user; const content=await prisma.siteContent.upsert({where:{id:'homepage'},create:{id:'homepage',payload:req.body,updatedBy:user?.id},update:{payload:req.body,version:{increment:1},updatedBy:user?.id}}); res.json(content) })
+app.get('/api/content/homepage', async (_req,res) => {
+  try {
+    const content=await prisma.siteContent.findUnique({where:{id:'homepage'}})
+    if(content?.payload) return res.json(content.payload)
+  } catch { /* use JSON persistence when PostgreSQL is unavailable */ }
+  res.json(await readJsonContent())
+})
+app.put('/api/content/homepage', auth([Role.SUPER_ADMIN,Role.ADMIN,Role.EDITOR]), async (req,res) => {
+  const user=(req as express.Request & {user?:{id:string}}).user
+  try {
+    const content=await prisma.siteContent.upsert({where:{id:'homepage'},create:{id:'homepage',payload:req.body,updatedBy:user?.id},update:{payload:req.body,version:{increment:1},updatedBy:user?.id}})
+    await writeJsonContent(req.body).catch(()=>undefined)
+    return res.json(content)
+  } catch {
+    try { await writeJsonContent(req.body); return res.json({payload:req.body,source:'json'}) }
+    catch { return res.status(503).json({error:'CMS storage is unavailable'}) }
+  }
+})
 app.post('/api/leads', async (req,res) => {
   const parsed=messageSchema.safeParse(req.body)
   if(!parsed.success)return res.status(400).json({error:parsed.error.flatten()})

@@ -12,6 +12,7 @@ const Field = ({label,value,onChange,area=false}:{label:string;value:string;onCh
 async function persistContent(content:CmsContent) {
   writeContent(content)
   const response=await fetch('/api/content/homepage',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${localStorage.getItem('cms-auth-token') || ''}`},body:JSON.stringify(content)})
+  if(response.status===401 || response.status===403) throw new Error('CMS session expired')
   if(!response.ok) throw new Error('Remote CMS save failed')
 }
 
@@ -19,7 +20,7 @@ export default function Admin() {
   const [content,setContent] = useState<CmsContent>(() => readContent()); const [tab,setTab] = useState<Tab>('overview'); const [query,setQuery] = useState(''); const [saved,setSaved] = useState(false)
   useEffect(() => { fetch('/api/content/homepage').then(response=>response.ok?response.json():null).then(remote=>{ if(remote && typeof remote==='object') { writeContent(remote); setContent(readContent()) } }).catch(()=>undefined) }, [])
   const update = (next:CmsContent) => { setContent(next); setSaved(false) }
-  const save = async () => { try { await persistContent(content); setSaved(true) } catch { setSaved(false); window.alert('Saved locally, but the Railway CMS could not be reached. Please sign in again and retry.') } window.setTimeout(()=>setSaved(false),2200) }
+  const save = async () => { try { await persistContent(content); setSaved(true) } catch (error) { setSaved(false); window.alert(error instanceof Error && error.message==='CMS session expired' ? 'Your admin session expired. Please sign in again.' : 'Saved locally, but remote CMS storage is unavailable. Please retry after the API is online.') } window.setTimeout(()=>setSaved(false),2200) }
   const signOut = () => { localStorage.removeItem('cms-auth-token'); localStorage.removeItem('cms-user'); window.location.assign('/') }
   const updateList = (key:'services'|'plans'|'testimonials', id:string, patch:Partial<RepeatableItem>) => update({...content,[key]:content[key].map(item=>item.id===id?{...item,...patch}:item)})
   const addItem = (key:'services'|'plans'|'testimonials') => update({...content,[key]:[...content[key],{id:`${key}-${Date.now()}`,title:'New item',description:'Add a description from the editor.',image:'',enabled:true,order:content[key].length+1}]})
