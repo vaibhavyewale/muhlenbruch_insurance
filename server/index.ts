@@ -67,7 +67,8 @@ app.get(['/api/auth/google/callback','/api/auth/callback/google'], async (req,re
     const state=typeof req.query.state==='string'?req.query.state:''
     if(!code || !state) return res.status(400).send('Google did not return an authorization code.')
     try { const verified=jwt.verify(state,secret) as {provider?:string}; if(verified.provider !== 'google') throw new Error('wrong provider') } catch { return res.status(400).send('Invalid or expired Google authorization state. Please start sign-in again.') }
-    const callback=(process.env.GOOGLE_CALLBACK_URL || `http://127.0.0.1:${port}/api/auth/callback/google`).trim().replace(/\/$/,'')
+    const configuredOrigin=(process.env.CLIENT_ORIGIN || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://127.0.0.1:${port}`)).trim().replace(/\/$/,'')
+    const callback=(process.env.GOOGLE_CALLBACK_URL || `${configuredOrigin}/api/auth/callback/google`).trim().replace(/\/$/,'')
     const tokenResponse=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:(process.env.GOOGLE_CLIENT_ID || '').trim(),client_secret:(process.env.GOOGLE_CLIENT_SECRET || '').trim(),redirect_uri:callback,grant_type:'authorization_code'})})
     const tokenBody=await tokenResponse.json() as {access_token?:string;error?:string;error_description?:string}
     if(!tokenResponse.ok || !tokenBody.access_token) { console.error('Google token exchange failed:',tokenBody); return res.status(401).send(`Google authorization failed: ${tokenBody.error_description || tokenBody.error || 'unknown provider error'}`) }

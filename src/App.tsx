@@ -25,7 +25,7 @@ function Navbar() {
   useEffect(() => { const fn = () => setScrolled(window.scrollY > 50); window.addEventListener('scroll', fn); return () => window.removeEventListener('scroll', fn) }, [])
   const links = cms.nav.filter(item=>item.enabled).sort((a,b)=>a.order-b.order).map(item=>[item.label,item.href])
   return <header className={`nav ${scrolled ? 'nav-scrolled' : ''}`}><div className="shell nav-inner">
-    <a href="#top" className="brand"><img className="site-logo" src={cms.logo} alt={cms.siteName} /></a>
+    <a href="#top" className="brand"><img className="site-logo" src={mediaUrl(cms.logo)} alt={cms.siteName} /></a>
     <nav className="desktop-nav">{links.map(([label, href]) => <a href={href} key={label}>{label}</a>)}</nav>
     <div className="nav-actions"><button aria-label="Search"><Search size={20}/></button><button className="menu-button" onClick={() => setOpen(!open)}>{open ? <X/> : <Menu/>}</button></div>
   </div><AnimatePresence>{open && <motion.nav className="mobile-menu" initial={{opacity:0,y:-12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}}>{links.map(([label, href]) => <a href={href} onClick={() => setOpen(false)} key={label}>{label}<ChevronRight size={16}/></a>)}</motion.nav>}</AnimatePresence></header>
